@@ -9,11 +9,13 @@ services:
          environment:
             - TZ=America/Los_Angeles
          volumes:
-            - ./storage/:/usr/src/app/zwift-offline/storage
+            - /home/ubuntu/zwift_storage/storage/:/usr/src/app/zwift-offline/storage
          ports:
             - 8081:80
             - 443:443
             - 3024:3024/udp
             - 3025:3025
-            - 53:53/udp
+            - 5353:5353/udp
          restart: unless-stopped
+
+
