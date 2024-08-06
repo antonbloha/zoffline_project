@@ -1,0 +1,99 @@
+---
+- name: Install Jenkins on Ubuntu
+  hosts: all
+  user: ubuntu
+  become: true
+  become_user: root
+  vars:
+    java_packages:
+      - openjdk-17-jdk
+    utils_packages:
+      - apt-transport-https
+      - wget
+      - curl
+      - software-properties-common
+      - git
+      - xmlstarlet
+      - cron
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Java packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ java_packages }}"
+
+    - name: Install utility packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ utils_packages }}"
+
+    - name: Manually add Jenkins APT repository key
+      command: wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    - name: manually add key for the repo
+      command: echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee  /etc/apt/sources.list.d/jenkins.list > /dev/null
+    - name: Add Jenkins APT repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Enable and start Jenkins service
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
+
+    - name: Add Jenkins to sudoers
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        line: 'jenkins ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+### Steps below are needed to update Jenkins IP on reboot
+
+    - name: Install xmlstarlet for editing XML files
+      apt:
+        name: xmlstarlet
+        state: present
+
+    - name: Create script to update Jenkins IP on startup
+      copy:
+        dest: "/usr/local/bin/update_jenkins_ip.sh"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+          CONFIG_FILE="/var/lib/jenkins/jenkins.model.JenkinsLocationConfiguration.xml"
+          xmlstarlet ed --inplace -u "/jenkins.model.JenkinsLocationConfiguration/jenkinsUrl" -v "http://${IP}:8080/" $CONFIG_FILE
+          systemctl restart jenkins
+
+    - name: Add script to crontab for running at reboot
+      cron:
+        name: "Update Jenkins IP at reboot"
+        special_time: reboot
+        job: "/usr/local/bin/update_jenkins_ip.sh"
+        state: present
+    - name: Retrieve Jenkins initial admin password
+      command: cat /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_admin_password
+      changed_when: false
+      ignore_errors: true
+
+    - name: Print Jenkins initial admin password
+      debug:
+        msg: "Jenkins initial admin password is: {{ jenkins_admin_password.stdout }}"
+      when: jenkins_admin_password is succeeded

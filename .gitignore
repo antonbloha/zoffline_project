@@ -1,0 +1,12 @@
+# Ignore Mac system files
+.DS_Store
+
+# Ignore other files
+node_modules/
+*.terraform*
+*.tfstate
+terraform.tfstate.backup
+jenkins_data/*
+jenkins_data
+.idea/*
+mongo-data
