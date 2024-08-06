@@ -1,6 +1,6 @@
 
-output "web-address_jenkins" {
-  value = aws_instance.jenkins.public_ip
+output "web-address_zwift" {
+  value = aws_instance.zwift.public_ip
 }
 
 output "account_id" {

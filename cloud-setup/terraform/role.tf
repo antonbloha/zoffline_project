@@ -1,8 +1,8 @@
 
-# Create IAM role for Jenkins
+# Create IAM role for Zwift
 resource "aws_iam_instance_profile" "zwift_role" {
   name = "zwift_offline_project"
-  role = aws_iam_role.zwift_profile.name
+  role = aws_iam_role.zwift_role.name
 }
 
 resource "aws_iam_role" "zwift_role" {
