@@ -42,7 +42,7 @@ pipeline {
                         def imageName = "${DOCKERHUB_USER}/zwfit-offline:${dateTag}"
                         sh """
                         echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        docker tag zwfit-offline ${imageName}
+                        docker tag zwift-offline ${imageName}
                         docker push ${imageName}
                         docker logout
                         """
