@@ -46,6 +46,7 @@ pipeline {
                         docker push ${imageName}
                         docker logout
                         """
+                        env.IMAGE_NAME = imageName  // Store the image name for later use
                     }
                 }
             }
@@ -53,22 +54,46 @@ pipeline {
         stage('Cleanup Docker Images') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                        def dateTag = sh(script: 'date +%Y%m%d', returnStdout: true).trim()
-                        def imageName = "${DOCKERHUB_USER}/zwfit-offline:${dateTag}"
-                        def newImageId = sh(script: "docker images -q ${imageName}", returnStdout: true).trim()
-                        
-                        if (newImageId) {
-                            def allImageIds = sh(script: 'docker images -q', returnStdout: true).trim().split("\n")
-                            def imagesToRemove = allImageIds.findAll { it != newImageId }
-    
-                            if (imagesToRemove) {
-                                sh "docker rmi -f ${imagesToRemove.join(' ')}"
-                            }
-                        } else {
-                            error("Failed to find the image ID for the newly created image.")
+                    def newImageId = sh(script: "docker images -q ${env.IMAGE_NAME}", returnStdout: true).trim()
+                    
+                    if (newImageId) {
+                        def allImageIds = sh(script: 'docker images -q', returnStdout: true).trim().split("\n")
+                        def imagesToRemove = allImageIds.findAll { it != newImageId }
+
+                        if (imagesToRemove) {
+                            sh "docker rmi -f ${imagesToRemove.join(' ')}"
                         }
+                    } else {
+                        error("Failed to find the image ID for the newly created image.")
                     }
+                }
+            }
+        }
+        stage('Update image_tag.txt and Push to GitHub') {
+            steps {
+                script {
+                    // Use sshagent to apply the SSH key for Git operations
+                    sshagent(['jenkins_github_access']) {
+                        // Write the image name to image_tag.txt
+                        sh """
+                        echo "${env.IMAGE_NAME}" > ./zwift-offline-zoffline_1.0.132734/image_tag.txt
+                        """
+
+                        // Commit and push the change back to GitHub using SSH
+                        sh """#!/bin/bash
+                        cd ./zwift-offline-zoffline_1.0.132734
+                        git add image_tag.txt
+                        git commit -m 'Update image_tag.txt with ${env.IMAGE_NAME}'
+                        git push git@github.com:antonbloha/zoffline_project.git main
+                        """
+                    }
+                }
+            }
+        }
+        stage('Trigger Another Pipeline') {
+            steps {
+                script {
+                    build job: 'Creating and Starting Docker Container', wait: false
                 }
             }
         }
