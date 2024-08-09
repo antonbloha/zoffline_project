@@ -3,6 +3,10 @@ pipeline {
     options {
         ansiColor('xterm')
     }
+    environment {
+        DOCKERHUB_USER = ''
+        DOCKERHUB_PASS = ''
+    }
     stages {
         stage('Clone Git repo') {
             steps {
@@ -47,9 +51,26 @@ pipeline {
             }
         }
         stage('Cleanup Docker Images') {
-           steps {
-         sh 'docker image prune -f'
-    }
-}
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                        def dateTag = sh(script: 'date +%Y%m%d', returnStdout: true).trim()
+                        def imageName = "${DOCKERHUB_USER}/zwfit-offline:${dateTag}"
+                        def newImageId = sh(script: "docker images -q ${imageName}", returnStdout: true).trim()
+                        
+                        if (newImageId) {
+                            def allImageIds = sh(script: 'docker images -q', returnStdout: true).trim().split("\n")
+                            def imagesToRemove = allImageIds.findAll { it != newImageId }
+    
+                            if (imagesToRemove) {
+                                sh "docker rmi -f ${imagesToRemove.join(' ')}"
+                            }
+                        } else {
+                            error("Failed to find the image ID for the newly created image.")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
