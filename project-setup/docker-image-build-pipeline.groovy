@@ -17,7 +17,7 @@ pipeline {
             steps {
                 sh '''
                 cd ./zwift-offline-zoffline_1.0.132734
-                docker build -t zwfit-offline .
+                docker build -t zwift-offline .
                 '''
             }
         }
@@ -25,11 +25,11 @@ pipeline {
             steps {
                 script {
                     def imageExists = sh(
-                        script: 'docker images -q zwfit-offline',
+                        script: 'docker images -q zwift-offline',
                         returnStatus: true
                     )
                     if (imageExists != 0) {
-                        error("Docker image 'zwfit-offline' not found, stopping pipeline.")
+                        error("Docker image 'zwift-offline' not found, stopping pipeline.")
                     }
                 }
             }
