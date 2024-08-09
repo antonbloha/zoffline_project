@@ -38,7 +38,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                        def dateTag = sh(script: 'date +%Y%m%d', returnStdout: true).trim()
+                        def dateTag = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
                         def imageName = "${DOCKERHUB_USER}/zwfit-offline:${dateTag}"
                         sh """
                         echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
@@ -46,7 +46,7 @@ pipeline {
                         docker push ${imageName}
                         docker logout
                         """
-                        env.IMAGE_NAME = imageName  
+                        env.IMAGE_NAME = imageName  // Store the image name for later use
                     }
                 }
             }
@@ -74,10 +74,12 @@ pipeline {
                 script {
                     
                     sshagent(['jenkins_github_access']) {
-                        
+                        // Write the image name to image_tag.txt
                         sh """
                         echo "${env.IMAGE_NAME}" > ./zwift-offline-zoffline_1.0.132734/image_tag.txt
                         """
+
+                        // Commit and push the change back to GitHub using SSH
                         sh """#!/bin/bash
                         cd ./zwift-offline-zoffline_1.0.132734
                         git add image_tag.txt
@@ -88,7 +90,7 @@ pipeline {
                 }
             }
         }
-        stage('Trigger Another Pipeline') {
+        stage('Start Container Creation Pipeline') {
             steps {
                 script {
                     build job: 'Creating and Starting Docker Container', wait: false
