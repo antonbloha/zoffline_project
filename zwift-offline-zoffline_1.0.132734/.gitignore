@@ -1,6 +1,7 @@
 *.pyc
 storage/*
 !storage/force_dir_in_git.txt
+!storage/server-ip.txt
 __pycache__/
 build/
 dist/
