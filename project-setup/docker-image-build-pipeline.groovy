@@ -15,21 +15,25 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                sh '''
-                cd ./zwift-offline-zoffline_1.0.132734
-                docker build -t zwift-offline .
-                '''
+                script {
+                    def dateTag = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
+                    sh """
+                    cd ./zwift-offline-zoffline_1.0.132734
+                    docker build -t zwift-offline:${dateTag} .
+                    """
+                    env.IMAGE_NAME = "zwift-offline:${dateTag}"
+                }
             }
         }
         stage('Verify the Image') {
             steps {
                 script {
                     def imageExists = sh(
-                        script: 'docker images -q zwift-offline',
+                        script: "docker images -q ${env.IMAGE_NAME}",
                         returnStatus: true
                     )
                     if (imageExists != 0) {
-                        error("Docker image 'zwift-offline' not found, stopping pipeline.")
+                        error("Docker image '${env.IMAGE_NAME}' not found, stopping pipeline.")
                     }
                 }
             }
@@ -38,11 +42,10 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                        def dateTag = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
-                        def imageName = "${DOCKERHUB_USER}/zwift-offline:${dateTag}"
+                        def imageName = "${DOCKERHUB_USER}/zwift-offline:${env.IMAGE_NAME.split(':')[1]}"
                         sh """
                         echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        docker tag zwift-offline ${imageName}
+                        docker tag ${env.IMAGE_NAME} ${imageName}
                         docker push ${imageName}
                         docker logout
                         """
@@ -51,28 +54,9 @@ pipeline {
                 }
             }
         }
-        stage('Cleanup Docker Images') {
-            steps {
-                script {
-                    def newImageId = sh(script: "docker images -q ${env.IMAGE_NAME}", returnStdout: true).trim()
-                    
-                    if (newImageId) {
-                        def allImageIds = sh(script: 'docker images -q', returnStdout: true).trim().split("\n")
-                        def imagesToRemove = allImageIds.findAll { it != newImageId }
-
-                        if (imagesToRemove) {
-                            sh "docker rmi -f ${imagesToRemove.join(' ')}"
-                        }
-                    } else {
-                        error("Failed to find the image ID for the newly created image.")
-                    }
-                }
-            }
-        }
         stage('Update image_tag.txt and Push to GitHub') {
             steps {
                 script {
-                    
                     sshagent(['jenkins_github_access']) {
                         // Write the image name to image_tag.txt
                         sh """
@@ -87,6 +71,14 @@ pipeline {
                         git push git@github.com:antonbloha/zoffline_project.git main
                         """
                     }
+                }
+            }
+        }
+        stage('Cleanup Docker Images') {
+            steps {
+                script {
+                    // Remove all unused Docker images
+                    sh 'docker image prune -a -f'
                 }
             }
         }
