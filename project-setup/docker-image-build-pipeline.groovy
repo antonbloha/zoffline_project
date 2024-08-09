@@ -39,7 +39,7 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
                         def dateTag = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
-                        def imageName = "${DOCKERHUB_USER}/zwfit-offline:${dateTag}"
+                        def imageName = "${DOCKERHUB_USER}/zwift-offline:${dateTag}"
                         sh """
                         echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
                         docker tag zwift-offline ${imageName}
