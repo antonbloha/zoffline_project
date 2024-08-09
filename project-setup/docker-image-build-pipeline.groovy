@@ -46,7 +46,7 @@ pipeline {
                         docker push ${imageName}
                         docker logout
                         """
-                        env.IMAGE_NAME = imageName  // Store the image name for later use
+                        env.IMAGE_NAME = imageName  
                     }
                 }
             }
@@ -72,14 +72,12 @@ pipeline {
         stage('Update image_tag.txt and Push to GitHub') {
             steps {
                 script {
-                    // Use sshagent to apply the SSH key for Git operations
+                    
                     sshagent(['jenkins_github_access']) {
-                        // Write the image name to image_tag.txt
+                        
                         sh """
                         echo "${env.IMAGE_NAME}" > ./zwift-offline-zoffline_1.0.132734/image_tag.txt
                         """
-
-                        // Commit and push the change back to GitHub using SSH
                         sh """#!/bin/bash
                         cd ./zwift-offline-zoffline_1.0.132734
                         git add image_tag.txt
