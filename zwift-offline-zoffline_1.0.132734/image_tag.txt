@@ -1,1 +1,1 @@
-qvotan/zwift-offline:20240809204749
+qvotan/zwift-offline:20240811040943
